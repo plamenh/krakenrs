@@ -57,6 +57,19 @@ pub struct LimitOrder {
     pub leverage: Option<String>,
 }
 
+/// A description of a settle-poisiton order to place
+#[derive(Debug, Clone)]
+pub struct SettlePositionOrder {
+    /// Whether to buy or sell
+    pub bs_type: BsType,
+    /// Volume (in lots)
+    pub volume: String,
+    /// Asset pair
+    pub pair: String,
+    /// Order flags (post-only etc.)
+    pub oflags: BTreeSet<OrderFlag>,
+}
+
 /// A connection to the Kraken REST API
 /// This only supports blocking http requests for now
 pub struct KrakenRestAPI {
@@ -205,6 +218,33 @@ impl KrakenRestAPI {
             userref: user_ref_id,
             validate,
             leverage: limit_order.leverage,
+        };
+        let result: Result<KrakenResult<AddOrderResponse>> = self.client.query_private("AddOrder", req);
+        result.and_then(unpack_kraken_result)
+    }
+
+    /// (Private) Place a settle-position order
+    ///
+    /// Arguments:
+    /// * settle_position_order: Settle-position order object describing the parameters of the order
+    /// * user_ref_id: Optional user ref id to attach to the order
+    /// * validate: If true, the order is only validated and is not actually placed
+    pub fn add_settle_position_order(
+        &self,
+        settle_position_order: SettlePositionOrder,
+        user_ref_id: Option<UserRefId>,
+        validate: bool,
+    ) -> Result<AddOrderResponse> {
+        let req = AddOrderRequest {
+            ordertype: OrderType::SettlePosition,
+            bs_type: settle_position_order.bs_type,
+            volume: settle_position_order.volume,
+            pair: settle_position_order.pair,
+            oflags: settle_position_order.oflags,
+            userref: user_ref_id,
+            validate,
+            price: Default::default(),
+            leverage: None,
         };
         let result: Result<KrakenResult<AddOrderResponse>> = self.client.query_private("AddOrder", req);
         result.and_then(unpack_kraken_result)
