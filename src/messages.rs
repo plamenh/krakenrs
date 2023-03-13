@@ -199,7 +199,7 @@ pub enum OrderStatus {
     Expired,
 }
 
-/// Order-info used in OpenOrders and QueryOrders APIs
+/// Order-info used in OpenOrders, ClosedOrders and QueryOrders APIs
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct OrderInfo {
     /// User reference id for the order
@@ -230,6 +230,10 @@ pub struct OrderInfo {
     /// misc info (comma separated list)
     #[serde(with = "serde_with::rust::StringWithSeparator::<CommaSeparator>")]
     pub misc: BTreeSet<MiscInfo>,
+    /// unix timestamp of last modification
+    pub closetm: Option<Decimal>,
+    /// reason for closing (optional):
+    pub reason: Option<String>,
 }
 
 /// Possible order flags in Kraken.
@@ -319,11 +323,25 @@ pub struct GetOpenOrdersRequest {
     pub userref: Option<UserRefId>,
 }
 
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct GetClosedOrdersRequest {
+    /// restrict results to given user reference id (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub userref: Option<UserRefId>,
+}
+
 /// Get open orders response
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct GetOpenOrdersResponse {
     /// The set of open orders, keyed by TxId
     pub open: HashMap<TxId, OrderInfo>,
+}
+
+/// Get closed orders response
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct GetClosedOrdersResponse {
+    /// The set of open orders, keyed by TxId
+    pub closed: HashMap<TxId, OrderInfo>,
 }
 
 /// Cancel order request

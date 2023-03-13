@@ -13,7 +13,7 @@ use messages::{
 };
 pub use messages::{
     AddOrderResponse, AssetPairsResponse, AssetTickerInfo, AssetsResponse, BalanceResponse, BsType,
-    CancelAllOrdersAfterResponse, CancelAllOrdersResponse, CancelOrderResponse, GetOpenOrdersResponse,
+    CancelAllOrdersAfterResponse, CancelAllOrdersResponse, CancelOrderResponse, GetOpenOrdersResponse, GetClosedOrdersResponse,
     GetWebSocketsTokenResponse, OrderAdded, OrderFlag, OrderInfo, OrderStatus, OrderType, SystemStatusResponse,
     TickerResponse, TimeResponse, TxId, UserRefId,
 };
@@ -68,6 +68,17 @@ pub struct SettlePositionOrder {
     pub pair: String,
     /// Order flags (post-only etc.)
     pub oflags: BTreeSet<OrderFlag>,
+    /// Leverage
+    /// Note: This is not the same as the leverage used to open the position
+    /// This is the leverage used to close the position
+    ///
+    /// For example, if you opened a position with 2x leverage, and then
+    /// closed it with 3x leverage, then the leverage used to close the position
+    /// would be 3x
+    ///
+    /// If you opened a position with 2x leverage, and then closed it with 1x leverage,
+    /// then the leverage used to close the position would be 1x
+    pub leverage: Option<String>,
 }
 
 /// A connection to the Kraken REST API
@@ -138,6 +149,18 @@ impl KrakenRestAPI {
         let result: Result<KrakenResult<GetOpenOrdersResponse>> = self
             .client
             .query_private("OpenOrders", GetOpenOrdersRequest { userref });
+        result.and_then(unpack_kraken_result)
+    }
+
+    /// (Private) Get the list of closed orders
+    /// Note: This is not the same as the list of orders that have been cancelled
+    /// (see `get_open_orders` for that)
+    /// Arguments:
+    /// * userref: An optional user-reference to filter the list of closed orders by
+    pub fn get_closed_orders(&self, userref: Option<UserRefId>) -> Result<GetClosedOrdersResponse> {
+        let result: Result<KrakenResult<GetClosedOrdersResponse>> = self
+            .client
+            .query_private("ClosedOrders", GetOpenOrdersRequest { userref });
         result.and_then(unpack_kraken_result)
     }
 
@@ -244,7 +267,7 @@ impl KrakenRestAPI {
             userref: user_ref_id,
             validate,
             price: Default::default(),
-            leverage: None,
+            leverage: settle_position_order.leverage,
         };
         let result: Result<KrakenResult<AddOrderResponse>> = self.client.query_private("AddOrder", req);
         result.and_then(unpack_kraken_result)
